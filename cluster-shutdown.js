@@ -1,7 +1,7 @@
 var cluster = require('cluster'); 
 var http = require('http'); 
 
-if (cluster.isMaster) { 
+if (cluster.isPrimary) { 
   var numWorkers = require('os').cpus().length;
   var wids = [];
 
@@ -17,7 +17,7 @@ if (cluster.isMaster) {
 
   wids.forEach(function(wid) {
      cluster.workers[wid].send({
-        text: 'hi there!',
+        type: 'shutdown',
         from: 'primary'
      });
   }); 
@@ -29,8 +29,6 @@ if (cluster.isMaster) {
   cluster.on('exit', function(worker,code,signal) {
     console.log('Worker ' + worker.process.pid + ' died with code: ' + code +
     ', and signal: ' + signal);
-    console.log('Starting a new worker');
-    cluster.fork();
   });
 
 } 
@@ -39,9 +37,13 @@ else {
     res.writeHead(200); 
     res.end('process ' + process.pid + ' says hello!'); 
   }).listen(8000); 
-
+ 
   process.on('message', function (message) {
     console.log(message);
+    if (message.type === 'shutdown') {
+       console.log('worker ' + process.pid + ' is shutting down!'); 
+       process.exit(0);
+    }
   });
 }
 
